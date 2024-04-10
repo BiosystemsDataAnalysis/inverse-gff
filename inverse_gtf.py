@@ -49,9 +49,9 @@ class myArguments(Tap):
 
 # only run this part when run in interactive/debug mode
 if interactive_mode:
-    # sys.argv = ['','--gff','Mus_musculus.GRCm38.102.chr.gff3','--out','outfile.gff3'] 
-    sys.argv = ['','--gff','mmsmall.gff3'] 
-
+    sys.argv = ['','--gff','Mus_musculus.GRCm38.102.chr.gff3','--out','test.gff3'] 
+    #sys.argv = ['','--gff','mmsmall.gff3', '--out','test.gff3'] 
+    # sys.argv = ['','--gff','cds_mm10.gff3', '--out','ncds_mm10.gff3'] 
 # parse the arguments
 args = myArguments().parse_args()
 
@@ -114,6 +114,7 @@ def create_inverse_definition_file(gene_definition_filename):
     # get chromosome regions
     chromosomes = gene_def.id.unique()
     for chromosome in chromosomes:
+        # find unique chromosome entry
         chr_region = gene_def.loc[ (gene_def.id==chromosome) & (gene_def.tp=='chromosome')]
         assert chr_region.shape[0]==1, "too many chromosome identifiers"        
         # arrayvec is now zero based
@@ -121,8 +122,9 @@ def create_inverse_definition_file(gene_definition_filename):
 
         # loop over all other features that were defined
         # other_features = gene_def.loc[ (gene_def.id==chromosome) & (gene_def.tp!='chromosome')]
-        # only select the genes with id == chromosome and type == 'gene' for removal
-        other_features = gene_def.loc[ (gene_def.id==chromosome) & (gene_def.tp=='gene')]
+        # only select the parts where info contains 'transcript'
+        other_features = gene_def.loc[ (gene_def.id==chromosome) & gene_def['info'].astype('str').str.contains('transcript',case=False)]
+        
         for _,feature in other_features.iterrows():
             # remove one for zero based
             _start = int((feature.stop > feature.start) * feature.start + (feature.stop < feature.start) * feature.stop)-1
@@ -134,26 +136,25 @@ def create_inverse_definition_file(gene_definition_filename):
             arrayvec[_range] = 0
             
         # find run lengths of array
-        
-        _rle,_pos = rle(arrayvec)
-        
-        # select the 1 sequences
-        _rle_ones = _rle[1::2]
-        _pos_ones = _pos[1::2]
+        _,_pos = rle(arrayvec)
+        # reshape array to start,stop matrix                
+        _pos_start_stop = np.reshape(_pos,(len(_pos)//2,2))
 
         row_list = []
         row_list.append(chr_region.to_dict('records')[0])
         _cnt = 1
         print("adding non coding ranges for chromosome {0} ({1}-{2})".format(chromosome,int(chr_region.iloc[0].start),int(chr_region.iloc[0].stop)))
-        # loop over all 1 sequences and create entry
-        for p,r in zip(_pos_ones,_rle_ones):
+        # loop over all sequences and create entry
+        for _row in range(_pos_start_stop.shape[0]):
+            s = _pos_start_stop[_row,0] + 1 # correct for 1 index again
+            e = _pos_start_stop[_row,1]
             dict = {'id':chromosome,
                     'or':'MS',
                     'tp':'NC',
-                    'start':p+1, # make it 1 based again
-                    'stop':p+1+r,
+                    'start':s, 
+                    'stop':e,
                     'nn1':'.',
-                    'strand':'+',
+                    'strand':'.',
                     'nn3':'.',
                     'info':'ID=NC:NC_{0}_{1:06d}'.format(chromosome,_cnt)} 
             _cnt = _cnt+1

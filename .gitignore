@@ -3,3 +3,6 @@
 *.csv
 *.gz
 *.gff3
+*.idx
+*.tdf
+*.tab
