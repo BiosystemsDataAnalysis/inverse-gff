@@ -11,4 +11,4 @@ python script to create ranges that are not related to any gene
     
 # usage
 
-python inverse-gff.py --gff gff-file --out out-file
+python inverse-gff.py --gff *file.gff3* --out *out.gff3*
