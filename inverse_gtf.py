@@ -45,13 +45,12 @@ interactive_mode = hasattr(sys, 'ps1')
 class myArguments(Tap):
     gff: str # the input gff file
     out: str # the output gff file
-
+    gene:bool=False # select the inverse of the gene definitions, default select inverse of transcript areas
 
 # only run this part when run in interactive/debug mode
 if interactive_mode:
     sys.argv = ['','--gff','Mus_musculus.GRCm38.102.chr.gff3','--out','test.gff3'] 
-    #sys.argv = ['','--gff','mmsmall.gff3', '--out','test.gff3'] 
-    # sys.argv = ['','--gff','cds_mm10.gff3', '--out','ncds_mm10.gff3'] 
+    
 # parse the arguments
 args = myArguments().parse_args()
 
@@ -120,10 +119,14 @@ def create_inverse_definition_file(gene_definition_filename):
         # arrayvec is now zero based
         arrayvec = np.ones((int(chr_region.iloc[0].stop-chr_region.iloc[0].start),1))
 
-        # loop over all other features that were defined
-        # other_features = gene_def.loc[ (gene_def.id==chromosome) & (gene_def.tp!='chromosome')]
-        # only select the parts where info contains 'transcript'
-        other_features = gene_def.loc[ (gene_def.id==chromosome) & gene_def['info'].astype('str').str.contains('transcript',case=False)]
+        # loop over all other features that were defined        
+
+        if args.gene:
+            # if gene selection
+            other_features = gene_def.loc[ (gene_def.id==chromosome) & (gene_def.tp=='gene')]        
+        else:
+            # case insensitive search for transcript in info part
+            other_features = gene_def.loc[ (gene_def.id==chromosome) & (gene_def['info'].astype('str').str.contains('transcript',case=False))]
         
         for _,feature in other_features.iterrows():
             # remove one for zero based
@@ -141,7 +144,8 @@ def create_inverse_definition_file(gene_definition_filename):
         _pos_start_stop = np.reshape(_pos,(len(_pos)//2,2))
 
         row_list = []
-        row_list.append(chr_region.to_dict('records')[0])
+        # add chromosome info to export
+        # row_list.append(chr_region.to_dict('records')[0])
         _cnt = 1
         print("adding non coding ranges for chromosome {0} ({1}-{2})".format(chromosome,int(chr_region.iloc[0].start),int(chr_region.iloc[0].stop)))
         # loop over all sequences and create entry
