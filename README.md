@@ -13,4 +13,4 @@ python script to create ranges that are not related to any gene
 
     python inverse-gff.py --gff *file.gff3* --out *out.gff3* [--gene]
 
-    **--gene** option to switch between gene definitions (i.e. type == 'gene') or transcripts. Transcripts are default
+    __--gene__ option to switch between gene definitions (i.e. type == 'gene') or transcripts. Transcripts are default
