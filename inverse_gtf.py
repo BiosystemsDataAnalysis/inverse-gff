@@ -133,7 +133,7 @@ def create_inverse_definition_file(gene_definition_filename):
             if args.case:
                 other_features = gene_def.loc[ (gene_def.id==chromosome) & (gene_def.tp == (args.key))]        
             else:
-                other_features = gene_def.loc[ (gene_def.id==chromosome) & (gene_def.tp.upper() == (args.key.upper()))]        
+                other_features = gene_def.loc[ (gene_def.id==chromosome) & (gene_def.tp.str.upper() == (args.key.upper()))]        
         else:
             # case insensitive search for transcript in info part
             other_features = gene_def.loc[ (gene_def.id==chromosome) & (gene_def['info'].astype('str').str.contains(args.key,case=args.case))]
