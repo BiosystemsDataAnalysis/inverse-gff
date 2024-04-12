@@ -11,6 +11,9 @@ python script to create ranges that are not related to any gene
     
 # usage
 
-    python inverse-gff.py --gff *file.gff3* --out *out.gff3* [--gene]
+    python inverse-gff.py --gff file.gff3 --out out.gff3 [--key gene] [--case] [--type]
 
-    --gene : option to switch between gene definitions (i.e. type == 'gene') or transcripts. Transcripts are default
+    --key : a string to look for in the column 
+    --type: use the type column to look for the key (default a the info column is selected)
+    --case: do a case sensitive search (default the search is case insensitive)
+    

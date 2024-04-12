@@ -45,11 +45,14 @@ interactive_mode = hasattr(sys, 'ps1')
 class myArguments(Tap):
     gff: str # the input gff file
     out: str # the output gff file
-    gene:bool=False # select the inverse of the gene definitions, default select inverse of transcript areas
+    type:bool=False # set the default column to look for to type (instead of info)
+    key:str='transcript' # set the default string to look for
+    case:bool=False # set the search to case sensitive, default case insensitve
+
 
 # only run this part when run in interactive/debug mode
 if interactive_mode:
-    sys.argv = ['','--gff','Mus_musculus.GRCm38.102.chr.gff3','--out','test.gff3'] 
+    sys.argv = ['','--gff','Mus_musculus.GRCm38.102.gff3','--out','test.gff3'] 
     
 # parse the arguments
 args = myArguments().parse_args()
@@ -115,18 +118,25 @@ def create_inverse_definition_file(gene_definition_filename):
     for chromosome in chromosomes:
         # find unique chromosome entry
         chr_region = gene_def.loc[ (gene_def.id==chromosome) & (gene_def.tp=='chromosome')]
-        assert chr_region.shape[0]==1, "too many chromosome identifiers"        
+        if chr_region.shape[0]>1:
+            print("skip chromosome {0}, too many ranges defined".format(chromosome))
+            continue
+        # skip empty chromosome definitions
+        if chr_region.shape[0]==0:
+            print("skip chromosome {0}, no range defined".format(chromosome))
+            continue
         # arrayvec is now zero based
         arrayvec = np.ones((int(chr_region.iloc[0].stop-chr_region.iloc[0].start),1))
-
         # loop over all other features that were defined        
-
-        if args.gene:
-            # if gene selection
-            other_features = gene_def.loc[ (gene_def.id==chromosome) & (gene_def.tp=='gene')]        
+        if args.type:
+            # if type selection
+            if args.case:
+                other_features = gene_def.loc[ (gene_def.id==chromosome) & (gene_def.tp == (args.key))]        
+            else:
+                other_features = gene_def.loc[ (gene_def.id==chromosome) & (gene_def.tp.upper() == (args.key.upper()))]        
         else:
             # case insensitive search for transcript in info part
-            other_features = gene_def.loc[ (gene_def.id==chromosome) & (gene_def['info'].astype('str').str.contains('transcript',case=False))]
+            other_features = gene_def.loc[ (gene_def.id==chromosome) & (gene_def['info'].astype('str').str.contains(args.key,case=args.case))]
         
         for _,feature in other_features.iterrows():
             # remove one for zero based
