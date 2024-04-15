@@ -156,19 +156,16 @@ def create_inverse_definition_file(gene_definition_filename):
     # only select non na entries from table
     gene_def = gene_def.loc[~gene_def.tp.isna()].copy()
 
-    # initialize output array
-    # df_noncoding = pd.DataFrame(columns=columns)    
-
     # get unique chromosomes 
     chromosomes = gene_def.loc[gene_def.tp.str.upper()=='CHROMOSOME'].id.unique()
 
-    # set number of threads, maximum to 10
+    # set number of threads
     concurrency = min(len(chromosomes),args.maxt)
     # create number of semaphores
     sema = multiprocessing.Semaphore(concurrency)
     # store the results
     block_results = multiprocessing.Manager().dict()
-    # create mp loop
+    # create vector for running processes
     mp_loop = []    
 
 
@@ -205,12 +202,10 @@ def create_inverse_definition_file(gene_definition_filename):
     for _p in mp_loop:
         _p.join()
 
+    # combine the blocks to a single dataframe
     df_inverse = block_results[chromosomes[0]]
     for _c in range(1,len(chromosomes)):
-        df_inverse = pd.concat([df_inverse,block_results[chromosomes[_c]]],axis=0)
-    
-
-        # create_chromosome_entries(block_index:int, mpdict,sema, datablock:pd.DataFrame, arrayvec:np.array, chromosome:str, columns,chr_region
+        df_inverse = pd.concat([df_inverse,block_results[chromosomes[_c]]],axis=0)        
                                 
     # nake integers integers
     df_inverse['start']=df_inverse['start'].astype('int')
