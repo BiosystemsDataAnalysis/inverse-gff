@@ -11,19 +11,28 @@ python script to create ranges that are not related to any gene
     
 # usage
 
-    python inverse-gff.py --gff file.gff3 --out out.gff3 [--key gene] [--case] [--type]
+    usage: inverse_gtf.py [-h] [-t] [-k KEY] [-c] [-m MAXT] gff out
 
-    --key : a string to look for in the column 
-    --type: (boolean, default False) use the type column to look for the key (default a the info column is selected)
-    --case: (boolean, default False) do a case sensitive search (default the search is case insensitive)
+    positional arguments:
+        gff                   The input gff file
+        out                   The output gff file
+
+    optional arguments:
+        -h, --help            show this help message and exit
+        -t, --type            Look in the type column (default info column)
+        -k KEY, --key KEY     The key to look for
+        -c, --case            Do a case sensitive key match (default case insensitive)
+        -m MAXT, --maxt MAXT  Set the maximum number of threads (default 1)
     
-
 # examples:
 
 ## case sensitive search in the info column for the word gene
         
-python inverse-gff.py --gff Mus_musculus.GRCm39.111.gff3  --out out.gff3 --key gene --case
+python inverse-gff.py Mus_musculus.GRCm39.111.gff3 out.gff3 --key gene --case
 
-## example 2, case insensitive search in the type (3rd column) for the word gene
+## example 2, case insensitive search in the type (3rd) column for the word gene
         
-python inverse_gtf.py --gff Mus_musculus.GRCm39.111.gff3 --out test.111.gene.gff3 --key gene --type
+python inverse_gtf.py Mus_musculus.GRCm39.111.gff3 test.111.gene.gff3 --key gene --type
+
+## example 3, case insentive search for transcript in the info column using 10 cores
+python inverse_gtf.py Mus_musculus.GRCm39.111.gff3 test.111.gene.gff3 -m 10
