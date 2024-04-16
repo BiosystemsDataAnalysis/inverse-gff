@@ -97,47 +97,55 @@ def rle(vector):
 
 def create_chromosome_entries(chromosome, mpdict, sema, datablock:pd.DataFrame, arrayvec:np.array, columns,chr_region):
 
-        for _,feature in datablock.iterrows():
-            # remove one for zero based
-            _start = int((feature.stop > feature.start) * feature.start + (feature.stop < feature.start) * feature.stop)-1
-            # also include the last item 
-            _stop =  int((feature.stop > feature.start) * feature.stop + (feature.stop < feature.start) * feature.start)
-            # make range
-            _range = [i for i in range(_start,_stop)]
-            # set range to zero
-            arrayvec[_range] = 0
-            
-        # find run lengths of array
-        _,_pos = rle(arrayvec)
-        # reshape array to start,stop matrix                
-        _pos_start_stop = np.reshape(_pos,(len(_pos)//2,2))
+        try:
+        
+            print("adding non coding ranges for chromosome {0} ({1}-{2})".format(chromosome,int(chr_region.iloc[0].start),int(chr_region.iloc[0].stop)))
 
-        row_list = []
-        # add chromosome info to export
-        # row_list.append(chr_region.to_dict('records')[0])
-        _cnt = 1
-        print("adding non coding ranges for chromosome {0} ({1}-{2})".format(chromosome,int(chr_region.iloc[0].start),int(chr_region.iloc[0].stop)))
-        # loop over all sequences and create entry
-        for _row in range(_pos_start_stop.shape[0]):
-            s = _pos_start_stop[_row,0] + 1 # correct for 1 index again
-            e = _pos_start_stop[_row,1]
-            dict = {'id':chromosome,
-                    'or':'MS',
-                    'tp':'NC',
-                    'start':s, 
-                    'stop':e,
-                    'nn1':'.',
-                    'strand':'.',
-                    'nn3':'.',
-                    'info':'ID=NC:NC_{0}_{1:06d}'.format(chromosome,_cnt)} 
-            _cnt = _cnt+1
-            row_list.append(dict)
+            for _,feature in datablock.iterrows():
+                # remove one for zero based
+                _start = int((feature.stop > feature.start) * feature.start + (feature.stop < feature.start) * feature.stop)-1
+                # also include the last item 
+                _stop =  int((feature.stop > feature.start) * feature.stop + (feature.stop < feature.start) * feature.start)
+                # make range
+                _range = [i for i in range(_start,_stop)]
+                # set range to zero
+                arrayvec[_range] = 0
+                
+            # find run lengths of array
+            _,_pos = rle(arrayvec)
+            # reshape array to start,stop matrix                
+            _pos_start_stop = np.reshape(_pos,(len(_pos)//2,2))
 
-        # make it a dataframe  
-        df = pd.DataFrame(row_list, columns=columns)
-        # store result in dictionary
-        mpdict[chromosome] = df
-        # release semaphore
+            # begin with empty list
+            row_list = []
+            # add chromosome info to export
+            # row_list.append(chr_region.to_dict('records')[0])
+            _cnt = 1
+            # loop over all sequences and create entry
+            for _row in range(_pos_start_stop.shape[0]):
+                s = _pos_start_stop[_row,0] + 1 # correct for 1 index again
+                e = _pos_start_stop[_row,1]
+                dict = {'id':chromosome,
+                        'or':'MS',
+                        'tp':'NC',
+                        'start':s, 
+                        'stop':e,
+                        'nn1':'.',
+                        'strand':'.',
+                        'nn3':'.',
+                        'info':'ID=NC:NC_{0}_{1:06d}'.format(chromosome,_cnt)} 
+                _cnt = _cnt+1
+                row_list.append(dict)
+
+            # make it a dataframe  
+            df = pd.DataFrame(row_list, columns=columns)
+            # store result in dictionary
+            mpdict[chromosome] = df
+            # release semaphore
+        except MemoryError as me:
+            print("Memory error calculating chromosome/block {0}".format(chromosome))
+            mpdict[chromosome] = -1
+        
         sema.release()
 
 
@@ -209,6 +217,47 @@ def create_inverse_definition_file(gene_definition_filename):
     # wait until all blocks have been processed
     for _p in mp_loop:
         _p.join()
+
+
+    # check for memory errors and redo missing blocks, single thread
+    for chromosome in block_results.keys():
+        if type(block_results[chromosome]) is int:
+            if block_results[chromosome]==-1:                
+                print("redoing block {0}".format(chromosome) )
+                chr_region = gene_def.loc[ (gene_def.id==chromosome) & (gene_def.tp.str.upper()=='CHROMOSOME')]
+                if chr_region.shape[0]>1:
+                    print("skip chromosome {0}, too many ranges defined".format(chromosome))
+                    continue
+                # skip empty chromosome definitions
+                if chr_region.shape[0]==0:
+                    print("skip chromosome {0}, no range defined".format(chromosome))
+                    continue
+                # arrayvec is now zero based
+                arrayvec = np.ones((int(chr_region.iloc[0].stop-chr_region.iloc[0].start),1))
+                # loop over all other features that were defined        
+                if args.type:
+                # if type selection
+                    if args.case:
+                        other_features = gene_def.loc[ (gene_def.id==chromosome) & (gene_def.tp == (args.key))]        
+                    else:
+                        other_features = gene_def.loc[ (gene_def.id==chromosome) & (gene_def.tp.str.upper() == (args.key.upper()))]        
+                else:
+                    # case insensitive search for transcript in info part
+                    other_features = gene_def.loc[ (gene_def.id==chromosome) & (gene_def['info'].astype('str').str.contains(args.key,case=args.case))]
+                
+                sema = multiprocessing.Semaphore(1)
+                sema.acquire()
+                _block_function = multiprocessing.Process(target=create_chromosome_entries,args=(chromosome,block_results,sema,other_features,arrayvec,columns,chr_region))
+                _block_function.start()
+                # wait for function to finish
+                _block_function.join()
+                if type(block_results[chromosome]) is int:
+                    if block_results[chromosome] == -1:
+                        print("Not enough memory to process chromosome/block {0}, exiting ... ".format(chromosome))
+                        sys.exit(1)
+
+
+                
 
     # combine the blocks to a single dataframe
     df_inverse = block_results[chromosomes[0]]
