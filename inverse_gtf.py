@@ -11,6 +11,9 @@ import subprocess
 import sys
 import multiprocessing
 
+import resource
+
+
 _packagesInstalled = True
 
 try:
@@ -25,6 +28,13 @@ except ImportError as e:
     print("numpy is not installed, please install before running")
     _packagesInstalled = False
 
+
+try:
+    import psutil
+except ImportError as e:
+    print("psutil is not installed, please install before running")
+    _packagesInstalled = False
+
 # if not all packages were install, quit
 if not(_packagesInstalled):
     sys.exit(1)
@@ -32,7 +42,6 @@ if not(_packagesInstalled):
 
 import argparse
 from os.path import exists
-
 
 # check if script is running in debug/interactive mode or not
 interactive_mode = hasattr(sys, 'ps1')
@@ -47,7 +56,7 @@ parser.add_argument("-t","--type",help="Look in the type column (default info co
 parser.add_argument("-k","--key",help="The key to look for",type=str,default="transcript")
 parser.add_argument("-c","--case",help="Do a case sensitive key match (default case insensitive)",default=False,action="store_true")
 parser.add_argument("-m","--maxt",help="Set the maximum number of threads (default 1)",type=int,default=1)
-
+parser.add_argument("-l","--lim",help="Set the memory limit (default 0.8)",type=float,default=0.8)
 
 # only run this part when run in interactive/debug mode
 if interactive_mode:
@@ -191,8 +200,7 @@ def create_inverse_definition_file(gene_definition_filename):
         else:
             # case insensitive search for transcript in info part
             other_features = gene_def.loc[ (gene_def.id==chromosome) & (gene_def['info'].astype('str').str.contains(args.key,case=args.case))]
-        
-        # 
+                    
         sema.acquire()
         _block_function = multiprocessing.Process(target=create_chromosome_entries,args=(chromosome,block_results,sema,other_features,arrayvec,columns,chr_region))
         mp_loop.append(_block_function)
@@ -213,7 +221,17 @@ def create_inverse_definition_file(gene_definition_filename):
 
     return df_inverse, headers
 
+
+def limit_memory(maxperc=0.8): 
+    m = psutil.virtual_memory()
+    maxsize = int(m.total*maxperc)
+    soft, hard = resource.getrlimit(resource.RLIMIT_AS) 
+    resource.setrlimit(resource.RLIMIT_AS, (maxsize, hard)) 
+
+
 # %% calling the main routine
+
+limit_memory(args.lim)
 
 igff2,_hdrs = create_inverse_definition_file(args.gff)
 

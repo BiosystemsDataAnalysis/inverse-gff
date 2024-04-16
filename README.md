@@ -22,7 +22,10 @@ python script to create ranges that are not related to any gene
         -k KEY, --key KEY     The key to look for
         -c, --case            Do a case sensitive key match (default case insensitive)
         -m MAXT, --maxt MAXT  Set the maximum number of threads (default 1)
+        -l LIM, --lim LIM     Set the memory limit (default 0.8)
     
+To prevent unexpected system exceptions the memory limit is set to 80% of the available system memory. If the memory limit is reached/exceeded the script generates memory errors indicating that too many threads were specified for the system. If already using a single thread free up system memory before running the script.
+
 # examples:
 
 ## case sensitive search in the info column for the word gene
