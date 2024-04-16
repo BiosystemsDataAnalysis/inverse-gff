@@ -24,7 +24,7 @@ python script to create ranges that are not related to any gene
         -m MAXT, --maxt MAXT  Set the maximum number of threads (default 1)
         -l LIM, --lim LIM     Set the memory limit (default 0.8)
     
-To prevent unexpected system exceptions the memory limit is set to 80% of the available system memory. If the memory limit is reached/exceeded the script generates memory errors indicating that too many threads were specified for the system. If already using a single thread free up system memory before running the script.
+To prevent unexpected system exceptions the memory limit is set to 80% of the available system memory. If the memory limit is reached/exceeded the script generates memory errors indicating that too many threads were specified for the system. It then tries to run the large blocks in a single thread. If memory errors still occur the script is quit. Either increase memory by increasing the memory limit (max=1) or shutting down running applications.
 
 # examples:
 
